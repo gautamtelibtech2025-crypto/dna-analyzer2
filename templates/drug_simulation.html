@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drug Discovery Simulation Web App using Molecular Docking</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+
+  <link rel="stylesheet" href="/static/css/drug_simulation.css" />
+</head>
+<body class="theme-light">
+  <header class="topbar">
+    <a href="/" class="brand">DNA&ProteinAnalyzer</a>
+    <div class="topbar-actions">
+      <button id="theme-toggle" class="ghost-btn" type="button">Toggle Theme</button>
+      <a class="ghost-btn" href="/">Back Home</a>
+    </div>
+  </header>
+
+  <main class="sim-wrap">
+    <section class="hero" id="home-state">
+      <p class="kicker">Bioinformatics Simulator</p>
+      <h1>Drug Discovery Simulation</h1>
+      <p>
+        Simulate protein-ligand docking with realistic randomized binding affinity,
+        interaction profiling, and comparison analytics for disease-specific models.
+      </p>
+      <button id="start-btn" class="primary-btn" type="button">Start Simulation</button>
+    </section>
+
+    <section class="card hidden" id="input-state">
+      <h2>Input Parameters</h2>
+      <p class="muted">Upload DNA sequence and optional ligand file for multi-pose binding simulation.</p>
+
+      <form id="docking-form" enctype="multipart/form-data">
+        <div class="grid-2">
+          <label class="field">
+            <span>DNA Sequence File (.fasta/.fa/.fna/.txt/.seq)</span>
+            <input type="file" name="dna_file" id="dna-file" accept=".fasta,.fa,.fna,.txt,.seq" required />
+            <small id="protein-help">Required: sequence must contain A/C/G/T bases.</small>
+          </label>
+
+          <label class="field">
+            <span>Ligand File (.sdf or .mol)</span>
+            <input type="file" name="ligand_file" id="ligand-file" accept=".sdf,.mol" />
+            <small id="ligand-help">Optional: ligand metadata contributes to pose variation seed.</small>
+          </label>
+        </div>
+
+        <div class="or-divider" aria-hidden="true">
+          <span>OR</span>
+        </div>
+
+        <p class="mode-note" id="input-mode-note">
+          Current Mode: DNA Sequence Required
+        </p>
+
+        <label class="field">
+          <span>Or Run Built-in Demo Project (No Upload)</span>
+          <select name="demo_project" id="demo-project">
+            <option value="">-- Select Demo Project --</option>
+            <option value="brca1_demo">BRCA1 + Olaparib Demo</option>
+            <option value="tp53_demo">TP53 + Nutlin-3 Demo</option>
+            <option value="egfr_demo">EGFR + Gefitinib Demo</option>
+          </select>
+          <small>Choose a demo to run instantly without uploading DNA file.</small>
+        </label>
+
+        <label class="field checkbox-field">
+          <span>
+            <input type="checkbox" name="enable_enrichment" id="enable-enrichment" checked />
+            Enable NCBI + AI Insights (slower)
+          </span>
+          <small>Keep unchecked for faster loading.</small>
+        </label>
+
+        <div class="actions-row">
+          <button type="submit" class="primary-btn">Run Docking Simulation</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card processing hidden" id="processing-state">
+      <div class="loader"></div>
+      <h3>Running Docking Simulation...</h3>
+      <p>Analyzing binding pockets, scoring interactions, and ranking ligands.</p>
+    </section>
+
+    <section class="card hidden" id="result-state">
+      <div class="result-head">
+        <h2>Simulation Result</h2>
+        <span id="mode-badge" class="badge">Demo Data</span>
+      </div>
+
+      <div class="grid-2 metrics">
+        <article class="metric">
+          <h4>Best Binding Energy</h4>
+          <p><span id="binding-energy">-</span> kcal/mol</p>
+        </article>
+        <article class="metric">
+          <h4>Average Binding Energy</h4>
+          <p><span id="avg-energy">-</span> kcal/mol</p>
+        </article>
+      </div>
+
+      <div class="grid-2 metrics">
+        <article class="metric">
+          <h4>Best Pose Number</h4>
+          <p id="best-pose">-</p>
+        </article>
+        <article class="metric">
+          <h4>Primary Interaction Insight</h4>
+          <p id="interaction-summary">-</p>
+        </article>
+      </div>
+
+      <p class="notice">Lower binding energy indicates stronger binding.</p>
+
+      <h3>2D/3D Interaction View</h3>
+      <div id="viewer" class="viewer"></div>
+
+      <h3>Binding Energy vs Pose Number</h3>
+      <div class="chart-panel">
+        <canvas id="comparison-chart" aria-label="Drug comparison chart"></canvas>
+      </div>
+
+      <div class="grid-2 meta-grid">
+        <p><strong>Target Model:</strong> <span id="disease-name">-</span></p>
+        <p><strong>DNA File:</strong> <span id="protein-name">-</span></p>
+        <p><strong>Ligand File:</strong> <span id="ligand-name">-</span></p>
+        <p><strong>Sequence Length:</strong> <span id="seq-length">-</span></p>
+        <p><strong>Sequence Fingerprint:</strong> <span id="seq-fingerprint">-</span></p>
+      </div>
+
+      <h3>Detailed Inputs and Derived Data</h3>
+      <div class="detail-grid">
+        <article class="detail-card">
+          <h4>DNA Sequence Preview</h4>
+          <pre id="dna-preview">-</pre>
+        </article>
+        <article class="detail-card">
+          <h4>Best ORF Protein Preview</h4>
+          <pre id="protein-preview">-</pre>
+        </article>
+        <article class="detail-card">
+          <h4>ORF and Pose Details</h4>
+          <p><strong>Best Reading Frame:</strong> <span id="best-frame">-</span></p>
+          <p><strong>Stop Position:</strong> <span id="stop-position">-</span></p>
+          <p><strong>Total Poses:</strong> <span id="pose-count">-</span></p>
+        </article>
+        <article class="detail-card">
+          <h4>Ligand Details</h4>
+          <p><strong>Ligand Type:</strong> <span id="ligand-type">-</span></p>
+          <p><strong>Best Pose Energy:</strong> <span id="best-pose-energy">-</span> kcal/mol</p>
+          <p><strong>Average Energy:</strong> <span id="avg-pose-energy">-</span> kcal/mol</p>
+          <p><strong>Hydrogen Bonds:</strong> <span id="h-bonds">-</span></p>
+          <p><strong>Hydrophobic Contacts:</strong> <span id="hydrophobic-contacts">-</span></p>
+          <p><strong>Ionic Interactions:</strong> <span id="ionic-contacts">-</span></p>
+          <p><strong>Pi-Stacking:</strong> <span id="pi-stacking">-</span></p>
+          <p><strong>Predicted Pocket:</strong> <span id="binding-pocket">-</span></p>
+        </article>
+      </div>
+
+      <h3>NCBI + AI Insights</h3>
+      <div class="detail-grid">
+        <article class="detail-card">
+          <h4>NCBI Context</h4>
+          <p><strong>Extracted Topic:</strong> <span id="ncbi-topic">-</span></p>
+          <p><strong>PubMed Matches:</strong> <span id="ncbi-count">-</span></p>
+          <div id="ncbi-papers" class="paper-list"></div>
+        </article>
+        <article class="detail-card">
+          <h4>AI Interpretation</h4>
+          <p><strong>AI Status:</strong> <span id="ai-status">-</span></p>
+          <p><strong>AI Error (if any):</strong> <span id="ai-error">-</span></p>
+          <pre id="ai-summary">-</pre>
+        </article>
+      </div>
+
+      <div class="actions-row">
+        <button id="download-report" class="primary-btn" type="button">Download Report</button>
+        <button id="run-again" class="ghost-btn" type="button">Run Another Simulation</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/js/drug_simulation.js"></script>
+</body>
+</html>

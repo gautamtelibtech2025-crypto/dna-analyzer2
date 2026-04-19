@@ -1,0 +1,25 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
+.env
+
+# Environment files
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Node modules (agar backend Node.js bhi hai)
+node_modules/
+
+# Build files
+dist/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db

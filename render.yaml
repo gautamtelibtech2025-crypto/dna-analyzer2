@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: dna-protein-analyzer
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ENTREZ_EMAIL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

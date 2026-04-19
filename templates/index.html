@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DNA & Protein Bioinformatics Analyzer — Sequence Analysis</title>
+  <meta name="description" content="Analyze any gene's DNA sequence, GC content, protein translation, reverse complement, and codon frequency using NCBI data and BioPython." />
+
+  <!-- Google Fonts – Sora for UI, JetBrains Mono for sequences -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js for interactive charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+
+  <!-- ── Ambient Background Blobs ────────────────── -->
+  <div class="ambient-bg" aria-hidden="true">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+
+  <!-- ── Header ───────────────────────────────────── -->
+  <header class="header">
+    <div class="header-inner">
+      <a href="/" class="logo" aria-label="DNA Analyzer Home">
+        <div class="logo-helix">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M14 2C8 6 8 12 14 14C20 16 20 22 14 26" stroke="url(#g1)" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M14 2C20 6 20 12 14 14C8 16 8 22 14 26" stroke="url(#g2)" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="8" y1="7" x2="20" y2="7" stroke="#94a3b8" stroke-width="1.2" opacity="0.5"/>
+            <line x1="7" y1="14" x2="21" y2="14" stroke="#94a3b8" stroke-width="1.2" opacity="0.5"/>
+            <line x1="8" y1="21" x2="20" y2="21" stroke="#94a3b8" stroke-width="1.2" opacity="0.5"/>
+            <defs>
+              <linearGradient id="g1" x1="14" y1="2" x2="14" y2="26">
+                <stop stop-color="#6366f1"/><stop offset="1" stop-color="#06b6d4"/>
+              </linearGradient>
+              <linearGradient id="g2" x1="14" y1="2" x2="14" y2="26">
+                <stop stop-color="#8b5cf6"/><stop offset="1" stop-color="#10b981"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <span class="logo-text">DNA&amp;Protein<strong>Analyzer</strong></span>
+      </a>
+      <div class="header-actions">
+        <p class="tagline">Gene sequence analysis powered by NCBI & BioPython</p>
+        <a href="/drug-discovery" class="sim-link">Try Drug Simulation</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Main Content ─────────────────────────────── -->
+  <main class="main-container">
+
+    <!-- Hero / Search Section -->
+    <section class="search-section" id="search-section">
+      <div class="hero-badge">🧬 Bioinformatics Tool</div>
+      <h1 class="search-title">Analyze any gene</h1>
+      <p class="search-subtitle">
+        Enter a gene or protein name to fetch its sequence from NCBI and run
+        comprehensive bioinformatics analysis in seconds.
+      </p>
+
+      <!-- Mode Toggle -->
+      <div class="mode-toggle" id="mode-toggle">
+        <button class="mode-btn active" id="mode-dna" onclick="setMode('dna')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M12 2c-4 4-4 10 0 12s4 8 0 12"/>
+            <path d="M12 2c4 4 4 10 0 12s-4 8 0 12"/>
+          </svg>
+          DNA Analysis
+        </button>
+        <button class="mode-btn" id="mode-protein" onclick="setMode('protein')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="7" r="4"/>
+            <path d="M12 11v6"/>
+            <path d="M9 17l3 4 3-4"/>
+          </svg>
+          Protein Analysis
+        </button>
+      </div>
+
+      <div class="search-box" id="search-box">
+        <div class="search-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <input
+          type="text"
+          id="gene-input"
+          class="gene-input"
+          placeholder="e.g. BRCA1, TP53, EGFR, MYC"
+          autocomplete="off"
+          aria-label="Gene name"
+        />
+        <button id="analyze-btn" class="analyze-btn" onclick="searchGene()">
+          <span id="btn-label">Analyze</span>
+          <span id="btn-spinner" class="btn-spinner hidden"></span>
+        </button>
+      </div>
+
+      <!-- Suggested genes for quick start -->
+      <div class="quick-tags" id="dna-quick-tags">
+        <span class="quick-tag-label">Try:</span>
+        <button class="quick-tag" onclick="quickSearch('BRCA1')">BRCA1</button>
+        <button class="quick-tag" onclick="quickSearch('TP53')">TP53</button>
+        <button class="quick-tag" onclick="quickSearch('EGFR')">EGFR</button>
+        <button class="quick-tag" onclick="quickSearch('INS')">INS</button>
+      </div>
+
+      <!-- Suggested proteins for quick start -->
+      <div class="quick-tags hidden" id="protein-quick-tags">
+        <span class="quick-tag-label">Try:</span>
+        <button class="quick-tag" onclick="quickSearch('insulin')">Insulin</button>
+        <button class="quick-tag" onclick="quickSearch('hemoglobin')">Hemoglobin</button>
+        <button class="quick-tag" onclick="quickSearch('p53')">p53</button>
+        <button class="quick-tag" onclick="quickSearch('collagen')">Collagen</button>
+      </div>
+
+      <!-- Error message -->
+      <div id="error-msg" class="error-msg hidden" role="alert"></div>
+    </section>
+
+    <!-- AI Research Paper Generator -->
+    <section class="research-section" id="research-section">
+      <h2 class="research-title">AI Research Paper Generator</h2>
+      <p class="research-subtitle">
+        Enter a gene or protein topic to fetch the latest PubMed studies and generate a structured literature review.
+      </p>
+
+      <div class="research-box" id="research-box">
+        <div class="search-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <input
+          type="text"
+          id="research-input"
+          class="gene-input"
+          placeholder="e.g. BRCA1, p53, insulin signaling"
+          autocomplete="off"
+          aria-label="Research topic"
+        />
+        <button id="research-btn" class="analyze-btn" onclick="generateResearchPaper()">
+          <span id="research-btn-label">Generate Research Paper</span>
+          <span id="research-btn-spinner" class="btn-spinner hidden"></span>
+        </button>
+      </div>
+
+      <div id="research-error" class="error-msg hidden" role="alert"></div>
+
+      <div id="research-output" class="research-output hidden">
+        <h3 id="research-output-title" class="research-output-title"></h3>
+        <div id="research-paper-content" class="research-paper-content"></div>
+        <div class="research-actions">
+          <button class="download-pdf-btn" id="download-research-pdf-btn" onclick="downloadResearchPDF()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span id="research-pdf-btn-label">Download Research Paper (PDF)</span>
+            <span id="research-pdf-btn-spinner" class="btn-spinner hidden"></span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Drug Discovery Simulation Module Banner -->
+    <section class="discovery-banner" onclick="window.location.href='/drug-discovery'">
+      <span class="discovery-chip">Interactive Sandbox</span>
+      <h2 class="research-title discovery-title">Drug Discovery Simulation</h2>
+      <p class="research-subtitle discovery-text">
+        Perform simulated molecular docking, calculate binding affinities, and analyze protein-ligand interactions dynamically in a 3D environment.
+      </p>
+      <button class="discovery-btn" tabindex="-1" aria-hidden="true">
+        Launch Sandbox Module
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+      </button>
+    </section>
+
+    <!-- Results Selection (Top 3 Hits) -->
+    <section id="results-selection" class="results-selection hidden">
+      <h2 class="section-label">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        Select a sequence to analyze
+      </h2>
+      <div id="result-cards" class="result-cards"></div>
+    </section>
+
+    <!-- Loading Spinner -->
+    <div id="fetch-spinner" class="fetch-spinner hidden">
+      <div class="spinner-dna">
+        <div class="spinner-dot d1"></div>
+        <div class="spinner-dot d2"></div>
+        <div class="spinner-dot d3"></div>
+      </div>
+      <p>Fetching & analyzing sequence…</p>
+      <span class="fetch-hint">This may take a few seconds for large sequences</span>
+    </div>
+
+    <!-- ── Full Analysis Results ──────────────────── -->
+    <section id="analysis-section" class="analysis-section hidden">
+
+      <!-- Gene Info Banner -->
+      <div id="gene-banner" class="gene-banner">
+        <div class="banner-cell">
+          <p class="banner-label">Accession</p>
+          <p id="res-accession" class="banner-value mono"></p>
+        </div>
+        <div class="banner-divider"></div>
+        <div class="banner-cell">
+          <p class="banner-label">Sequence Length</p>
+          <p id="res-length" class="banner-value"></p>
+        </div>
+        <div class="banner-divider"></div>
+        <div class="banner-cell">
+          <p class="banner-label">GC Content</p>
+          <p id="res-gc" class="banner-value gc-val"></p>
+        </div>
+      </div>
+      <p id="res-description" class="gene-desc"></p>
+
+      <!-- ── Analysis Cards Grid ──────────────── -->
+      <div class="cards-grid">
+
+        <!-- DNA Sequence Preview -->
+        <div class="card card-wide animate-in">
+          <div class="card-header">
+            <span class="card-icon">🔬</span>
+            <h3>DNA Sequence Preview</h3>
+            <span class="card-badge">first 200 bases</span>
+            <button class="view-full-btn" id="toggle-seq-btn" onclick="toggleFullView('sequence')" title="View full sequence">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span>View Full</span>
+            </button>
+          </div>
+          <pre id="res-sequence" class="mono-block dna-block"></pre>
+          <div id="full-sequence-wrap" class="full-seq-wrap hidden">
+            <div class="full-seq-header">
+              <span>📄 Full DNA Sequence</span>
+              <button class="collapse-btn" onclick="toggleFullView('sequence')">Collapse ↑</button>
+            </div>
+            <pre id="res-sequence-full" class="mono-block dna-block full-seq-block"></pre>
+          </div>
+        </div>
+
+        <!-- Nucleotide Composition Chart -->
+        <div class="card animate-in">
+          <div class="card-header">
+            <span class="card-icon">📊</span>
+            <h3>Nucleotide Composition</h3>
+          </div>
+          <div class="chart-container">
+            <canvas id="gc-chart" aria-label="Nucleotide composition chart"></canvas>
+          </div>
+          <p id="gc-summary" class="gc-summary"></p>
+        </div>
+
+        <!-- Reverse Complement -->
+        <div class="card animate-in">
+          <div class="card-header">
+            <span class="card-icon">🔄</span>
+            <h3>Reverse Complement</h3>
+            <span class="card-badge">first 200 bases</span>
+            <button class="view-full-btn" id="toggle-revcomp-btn" onclick="toggleFullView('revcomp')" title="View full reverse complement">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span>View Full</span>
+            </button>
+          </div>
+          <pre id="res-revcomp" class="mono-block"></pre>
+          <div id="full-revcomp-wrap" class="full-seq-wrap hidden">
+            <div class="full-seq-header">
+              <span>📄 Full Reverse Complement</span>
+              <button class="collapse-btn" onclick="toggleFullView('revcomp')">Collapse ↑</button>
+            </div>
+            <pre id="res-revcomp-full" class="mono-block full-seq-block"></pre>
+          </div>
+        </div>
+
+        <!-- Protein Translation -->
+        <div class="card card-wide animate-in">
+          <div class="card-header">
+            <span class="card-icon">🧪</span>
+            <h3>Protein Translation</h3>
+            <span class="card-badge">truncated to 300 aa</span>
+            <button class="view-full-btn" id="toggle-protein-btn" onclick="toggleFullView('protein')" title="View full protein">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span>View Full</span>
+            </button>
+          </div>
+          <pre id="res-protein" class="mono-block protein-block"></pre>
+          <div id="full-protein-wrap" class="full-seq-wrap hidden">
+            <div class="full-seq-header">
+              <span>📄 Full Protein Translation</span>
+              <button class="collapse-btn" onclick="toggleFullView('protein')">Collapse ↑</button>
+            </div>
+            <pre id="res-protein-full" class="mono-block protein-block full-seq-block"></pre>
+          </div>
+        </div>
+
+        <!-- Codon Frequency -->
+        <div class="card card-wide animate-in">
+          <div class="card-header">
+            <span class="card-icon">📈</span>
+            <h3>Codon Frequency</h3>
+            <span class="card-badge">top 20 codons</span>
+          </div>
+          <div id="codon-table-wrapper">
+            <table class="codon-table" id="codon-table">
+              <thead>
+                <tr><th>Codon</th><th>Count</th><th>Frequency</th></tr>
+              </thead>
+              <tbody id="codon-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /cards-grid -->
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button class="download-pdf-btn" id="download-pdf-btn" onclick="downloadPDF()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span id="pdf-btn-label">Download Full Report (PDF)</span>
+          <span id="pdf-btn-spinner" class="btn-spinner hidden"></span>
+        </button>
+        <button class="reset-btn" onclick="resetApp()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Search another gene
+        </button>
+      </div>
+    </section>
+
+    <!-- ══ Protein Analysis Results ════════════════════════ -->
+    <section id="protein-analysis-section" class="analysis-section hidden">
+
+      <!-- Protein Info Banner -->
+      <div class="gene-banner protein-banner">
+        <div class="banner-cell">
+          <p class="banner-label">Accession</p>
+          <p id="prot-accession" class="banner-value mono"></p>
+        </div>
+        <div class="banner-divider"></div>
+        <div class="banner-cell">
+          <p class="banner-label">Length</p>
+          <p id="prot-length" class="banner-value"></p>
+        </div>
+        <div class="banner-divider"></div>
+        <div class="banner-cell">
+          <p class="banner-label">Molecular Weight</p>
+          <p id="prot-mw" class="banner-value gc-val"></p>
+        </div>
+      </div>
+      <p id="prot-description" class="gene-desc"></p>
+
+      <!-- Protein Analysis Cards Grid -->
+      <div class="cards-grid">
+
+        <!-- Protein Sequence Preview -->
+        <div class="card card-wide animate-in">
+          <div class="card-header">
+            <span class="card-icon">🧪</span>
+            <h3>Protein Sequence</h3>
+            <span class="card-badge">first 200 aa</span>
+            <button class="view-full-btn" id="toggle-protseq-btn" onclick="toggleFullView('protseq')" title="View full protein sequence">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span>View Full</span>
+            </button>
+          </div>
+          <pre id="prot-sequence" class="mono-block protein-block"></pre>
+          <div id="full-protseq-wrap" class="full-seq-wrap hidden">
+            <div class="full-seq-header">
+              <span>📄 Full Protein Sequence</span>
+              <button class="collapse-btn" onclick="toggleFullView('protseq')">Collapse ↑</button>
+            </div>
+            <pre id="prot-sequence-full" class="mono-block protein-block full-seq-block"></pre>
+          </div>
+        </div>
+
+        <!-- Physicochemical Properties -->
+        <div class="card animate-in">
+          <div class="card-header">
+            <span class="card-icon">⚗️</span>
+            <h3>Physicochemical Properties</h3>
+          </div>
+          <div class="props-grid">
+            <div class="prop-item">
+              <span class="prop-label">Isoelectric Point (pI)</span>
+              <span class="prop-value" id="prot-pi"></span>
+            </div>
+            <div class="prop-item">
+              <span class="prop-label">Instability Index</span>
+              <span class="prop-value" id="prot-instability"></span>
+              <span class="prop-tag" id="prot-stability-tag"></span>
+            </div>
+            <div class="prop-item">
+              <span class="prop-label">GRAVY Score</span>
+              <span class="prop-value" id="prot-gravy"></span>
+            </div>
+            <div class="prop-item">
+              <span class="prop-label">Aromaticity</span>
+              <span class="prop-value" id="prot-aromaticity"></span>
+            </div>
+            <div class="prop-item">
+              <span class="prop-label">Charge at pH 7.0</span>
+              <span class="prop-value" id="prot-charge"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Amino Acid Composition Chart -->
+        <div class="card animate-in">
+          <div class="card-header">
+            <span class="card-icon">📊</span>
+            <h3>Amino Acid Composition</h3>
+          </div>
+          <div class="chart-container chart-container-tall">
+            <canvas id="aa-chart" aria-label="Amino acid composition chart"></canvas>
+          </div>
+        </div>
+
+        <!-- Secondary Structure Prediction -->
+        <div class="card animate-in">
+          <div class="card-header">
+            <span class="card-icon">🏛️</span>
+            <h3>Secondary Structure Fraction</h3>
+          </div>
+          <div class="chart-container">
+            <canvas id="sec-chart" aria-label="Secondary structure chart"></canvas>
+          </div>
+          <p id="sec-summary" class="gc-summary"></p>
+        </div>
+
+        <!-- Amino Acid Frequency Table -->
+        <div class="card card-wide animate-in">
+          <div class="card-header">
+            <span class="card-icon">📈</span>
+            <h3>Amino Acid Frequency</h3>
+            <span class="card-badge">top 20 amino acids</span>
+          </div>
+          <div id="aa-table-wrapper">
+            <table class="codon-table" id="aa-table">
+              <thead>
+                <tr><th>Amino Acid</th><th>Count</th><th>Percentage</th><th>Frequency</th></tr>
+              </thead>
+              <tbody id="aa-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /cards-grid -->
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button class="download-pdf-btn" id="download-protein-pdf-btn" onclick="downloadProteinPDF()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span id="protein-pdf-btn-label">Download Protein Report (PDF)</span>
+          <span id="protein-pdf-btn-spinner" class="btn-spinner hidden"></span>
+        </button>
+        <button class="reset-btn" onclick="resetApp()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Search another protein
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── Footer ───────────────────────────────────── -->
+  <footer class="footer">
+    <p>
+      Data from <a href="https://www.ncbi.nlm.nih.gov/" target="_blank" rel="noopener">NCBI</a>
+      via Entrez API &middot; Powered by <a href="https://biopython.org/" target="_blank" rel="noopener">BioPython</a>
+      &middot; Built with Flask
+    </p>
+  </footer>
+
+  <script src="/static/js/main.js"></script>
+</body>
+</html>
