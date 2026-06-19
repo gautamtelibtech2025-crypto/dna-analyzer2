@@ -20,8 +20,7 @@ python app.py
 ```
 
 Open:
-- Main app: http://127.0.0.1:5000
-- Simulation page: http://127.0.0.1:5000/drug-discovery
+- Main app: https://dna-analyzer2.onrender.com
 
 ## Environment Variables
 - `ENTREZ_EMAIL` required for NCBI Entrez usage
